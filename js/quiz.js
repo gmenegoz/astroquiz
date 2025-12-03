@@ -1,6 +1,7 @@
 /**
  * Quiz Backend Logic
  * Handles question loading, answer validation, and score tracking
+ * Now integrated with backend API for Google Sheets persistence
  */
 
 class Quiz {
@@ -9,52 +10,67 @@ class Quiz {
         this.currentQuestionIndex = 0;
         this.score = 0;
         this.userAnswers = [];
+        this.sessionID = null;
+        this.sessionStartTime = null;
     }
 
     /**
-     * Load questions from embedded data
+     * Load questions from backend API
      */
     async loadQuestions() {
         try {
-            // Questions data embedded to avoid CORS issues
-            this.questions = [
-                {
-                    "uniqueID": "cannocchiale",
-                    "question": "Chi ha inventato il cannocchiale?",
-                    "subject": "strumenti",
-                    "answers": [
-                        {"answer": "Galileo Galilei", "correct": false},
-                        {"answer": "Paolo Antoniazzi", "correct": false},
-                        {"answer": "Qualcun altro", "correct": true}
-                    ]
-                },
-                {
-                    "uniqueID": "congiunzione",
-                    "question": "Cosa succede durante una congiunzione planetaria?",
-                    "subject": "congiunzione",
-                    "answers": [
-                        {"answer": "Due pianeti si fondono e diventano un'unico oggetto", "correct": false},
-                        {"answer": "Dal nostro punto di vista sembrano molto vicini", "correct": true},
-                        {"answer": "I nati nel Capricorno incontrano l'anima gemella", "correct": false}
-                    ]
-                },
-                {
-                    "uniqueID": "stelle cadenti",
-                    "question": "Quanto sono grandi i frammenti di roccia che danno origine ad uno sciame di stelle cadenti?",
-                    "subject": "meteore",
-                    "answers": [
-                        {"answer": "Come un granello di sabbia", "correct": true},
-                        {"answer": "Come un pugno", "correct": false},
-                        {"answer": "Come un'automobile", "correct": false}
-                    ]
-                }
-            ];
+            const response = await apiRequest(API_CONFIG.ENDPOINTS.GET_QUESTIONS, {
+                method: 'GET',
+            });
+
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to load questions');
+            }
+
+            // Transform backend format to match existing format
+            this.questions = response.questions.map(q => ({
+                uniqueID: q.id,
+                question: q.question,
+                subject: '', // Not used in current implementation
+                answers: q.answers.map((answer, index) => ({
+                    answer: answer,
+                    correct: index === q.correctIndex,
+                })),
+            }));
+
             this.shuffleQuestions();
             this.shuffleAnswers();
             return true;
         } catch (error) {
             console.error('Errore nel caricamento delle domande:', error);
+            alert('Errore di connessione al server. Verifica la configurazione API.');
             return false;
+        }
+    }
+
+    /**
+     * Start a new session (call backend to create session)
+     */
+    async startSession() {
+        try {
+            const response = await apiRequest(API_CONFIG.ENDPOINTS.START_SESSION, {
+                method: 'POST',
+                body: JSON.stringify({}),
+            });
+
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to start session');
+            }
+
+            this.sessionID = response.sessionID;
+            this.sessionStartTime = response.timestamp;
+            console.log('Session started:', this.sessionID);
+            return true;
+        } catch (error) {
+            console.error('Errore nell\'avvio della sessione:', error);
+            // Non-blocking: continue even if session creation fails
+            this.sessionID = 'offline-' + Date.now();
+            return true;
         }
     }
 
@@ -96,25 +112,53 @@ class Quiz {
     }
 
     /**
-     * Check if the selected answer is correct
+     * Check if the selected answer is correct and record it to backend
      * @param {number} answerIndex - Index of the selected answer
-     * @returns {boolean} - True if answer is correct
+     * @returns {Promise<Object>} - {isCorrect, statistics}
      */
-    checkAnswer(answerIndex) {
+    async checkAnswer(answerIndex) {
         const currentQuestion = this.getCurrentQuestion();
         const selectedAnswer = currentQuestion.answers[answerIndex];
+        const isCorrect = selectedAnswer.correct;
 
+        // Store answer locally
         this.userAnswers.push({
             questionId: currentQuestion.uniqueID,
             selectedAnswer: selectedAnswer.answer,
-            isCorrect: selectedAnswer.correct
+            isCorrect: isCorrect,
         });
 
-        if (selectedAnswer.correct) {
+        // Update score locally
+        if (isCorrect) {
             this.score++;
-            return true;
         }
-        return false;
+
+        // Record answer to backend and get statistics
+        try {
+            const response = await apiRequest(API_CONFIG.ENDPOINTS.RECORD_ANSWER, {
+                method: 'POST',
+                body: JSON.stringify({
+                    sessionID: this.sessionID,
+                    questionID: currentQuestion.uniqueID,
+                    selectedAnswerIndex: answerIndex,
+                }),
+            });
+
+            if (response.success) {
+                return {
+                    isCorrect: isCorrect,
+                    statistics: response.statistics,
+                };
+            }
+        } catch (error) {
+            console.error('Errore nel salvataggio della risposta:', error);
+        }
+
+        // Return without statistics if backend call fails
+        return {
+            isCorrect: isCorrect,
+            statistics: null,
+        };
     }
 
     /**
@@ -156,12 +200,82 @@ class Quiz {
     }
 
     /**
+     * Complete the session (save final results to backend)
+     */
+    async completeSession() {
+        if (!this.sessionID) return;
+
+        try {
+            const response = await apiRequest(API_CONFIG.ENDPOINTS.COMPLETE_SESSION, {
+                method: 'POST',
+                body: JSON.stringify({
+                    sessionID: this.sessionID,
+                    finalScore: this.score,
+                    totalQuestions: this.questions.length,
+                }),
+            });
+
+            if (response.success) {
+                console.log('Session completed successfully');
+                return true;
+            }
+        } catch (error) {
+            console.error('Errore nel completamento della sessione:', error);
+        }
+        return false;
+    }
+
+    /**
+     * Abandon the session (user left without completing)
+     */
+    async abandonSession() {
+        if (!this.sessionID || this.sessionID.startsWith('offline-')) return;
+
+        try {
+            await apiRequest(API_CONFIG.ENDPOINTS.ABANDON_SESSION, {
+                method: 'POST',
+                body: JSON.stringify({
+                    sessionID: this.sessionID,
+                }),
+            });
+            console.log('Session abandoned');
+        } catch (error) {
+            console.error('Errore nell\'abbandono della sessione:', error);
+        }
+    }
+
+    /**
+     * Get score distribution for chart
+     */
+    async getScoreDistribution() {
+        try {
+            const response = await apiRequest(API_CONFIG.ENDPOINTS.GET_SCORE_DISTRIBUTION, {
+                method: 'GET',
+            });
+
+            if (response.success) {
+                return response;
+            }
+        } catch (error) {
+            console.error('Errore nel caricamento della distribuzione dei punteggi:', error);
+        }
+        return null;
+    }
+
+    /**
      * Reset quiz
      */
     reset() {
+        // Abandon current session if exists
+        if (this.sessionID && !this.sessionID.startsWith('offline-')) {
+            this.abandonSession(); // Fire and forget
+        }
+
         this.currentQuestionIndex = 0;
         this.score = 0;
         this.userAnswers = [];
+        this.sessionID = null;
+        this.sessionStartTime = null;
         this.shuffleQuestions();
         this.shuffleAnswers();
     }

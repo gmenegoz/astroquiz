@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets API Test - AstroQuiz</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Additional styles for the test page */
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .test-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-header h1 {
+            margin-bottom: 10px;
+        }
+
+        .test-header .subtitle {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .control-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .auth-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .auth-status {
+            font-weight: bold;
+            padding: 8px 15px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .auth-status.authenticated {
+            color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .auth-status.not-authenticated {
+            color: #ff9800;
+            background: rgba(255, 152, 0, 0.2);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .log-section {
+            margin-bottom: 20px;
+        }
+
+        .log-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .log-time {
+            color: #888;
+            margin-right: 10px;
+        }
+
+        .log-info {
+            color: #17a2b8;
+        }
+
+        .log-success {
+            color: #28a745;
+            background: rgba(40, 167, 69, 0.1);
+        }
+
+        .log-warning {
+            color: #ffc107;
+            background: rgba(255, 193, 7, 0.1);
+        }
+
+        .log-error {
+            color: #dc3545;
+            background: rgba(220, 53, 69, 0.1);
+        }
+
+        .results-section {
+            margin-top: 20px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 15px;
+        }
+
+        #results-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            min-height: 200px;
+        }
+
+        .json-display {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            padding: 15px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        .json-display pre {
+            margin: 0;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .result-section {
+            margin-bottom: 20px;
+        }
+
+        .result-section h3 {
+            color: #E8A558;
+            margin-bottom: 10px;
+            border-bottom: 2px solid rgba(232, 165, 88, 0.3);
+            padding-bottom: 5px;
+        }
+
+        .result-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .result-section li {
+            padding: 5px 0;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(232, 165, 88, 0.2);
+            color: #E8A558;
+            font-weight: bold;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #E8A558;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .error-display {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid #dc3545;
+            border-radius: 5px;
+            padding: 15px;
+            color: #dc3545;
+        }
+
+        .error-display h3 {
+            color: #dc3545;
+            margin-top: 0;
+        }
+
+        .back-link {
+            margin-bottom: 20px;
+        }
+
+        .back-link a {
+            color: #E8A558;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="back-link">
+            <a href="index.html">← Torna alla Home</a>
+        </div>
+
+        <div class="test-header">
+            <h1>Google Sheets API - Test Page</h1>
+            <p class="subtitle">Proof of Concept per l'integrazione con Google Sheets</p>
+        </div>
+
+        <div class="control-panel">
+            <h2>Controlli</h2>
+
+            <div class="auth-section">
+                <span id="auth-status" class="auth-status not-authenticated">Initializing...</span>
+                <div class="button-group">
+                    <button id="sign-in-btn" class="btn btn-primary" disabled>
+                        Accedi con Google
+                    </button>
+                    <button id="sign-out-btn" class="btn btn-secondary" style="display: none;">
+                        Esci
+                    </button>
+                    <button id="fetch-data-btn" class="btn btn-success" disabled>
+                        Recupera Dati
+                    </button>
+                </div>
+            </div>
+
+            <div class="log-section">
+                <h3>Log di Sistema</h3>
+                <div id="log-container" class="log-container">
+                    <!-- Log entries will be added here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h2>Risultati</h2>
+            <div id="results-container">
+                <p class="empty-state">Nessun dato caricato. Accedi e clicca su "Recupera Dati" per iniziare.</p>
+            </div>
+        </div>
+
+        <div class="control-panel" style="margin-top: 30px;">
+            <h3>Istruzioni per la Configurazione</h3>
+            <ol>
+                <li>Vai alla <a href="https://console.cloud.google.com/" target="_blank" style="color: #E8A558;">Google Cloud Console</a></li>
+                <li>Crea un nuovo progetto o seleziona uno esistente</li>
+                <li>Abilita la Google Sheets API</li>
+                <li>Crea credenziali OAuth 2.0:
+                    <ul>
+                        <li>Tipo: "Web application"</li>
+                        <li>Authorized JavaScript origins: aggiungi il tuo dominio (es. http://localhost:8080)</li>
+                    </ul>
+                </li>
+                <li>Copia il Client ID nel file <code>js/config.js</code></li>
+                <li>Inserisci l'ID del tuo Spreadsheet nel file <code>js/config.js</code></li>
+                <li>Ricarica questa pagina</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Configuration and API integration -->
+    <script src="js/config.js"></script>
+    <script src="js/sheets-api.js"></script>
+    <!-- Google API Libraries -->
+    <script src="https://apis.google.com/js/api.js" onload="initializeGapiClient()"></script>
+    <script src="https://accounts.google.com/gsi/client" onload="initializeGisClient()"></script>
+
+</body>
+</html>

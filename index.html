@@ -64,6 +64,7 @@
             <p>Hai fatto attenzione durante la visita?.</p>
             <button id="start-btn" class="btn btn-primary">Inizia il Quiz</button>
             <button id="test-btn" class="btn btn-secondary" onclick="window.open('tests/test-runner.html', '_blank')" style="margin-top: 10px; background: #6c757d;">Esegui Test</button>
+            <button id="sheets-test-btn" class="btn btn-secondary" onclick="window.location.href='sheets-test.html'" style="margin-top: 10px; background: #28a745;">Test Google Sheets API</button>
         </div>
 
         <!-- Quiz Screen -->
@@ -98,11 +99,23 @@
                     <p class="percentage"><span id="percentage">0</span>%</p>
                 </div>
                 <p id="result-message" class="result-message"></p>
+
+                <!-- Score Distribution Chart -->
+                <div class="chart-container">
+                    <canvas id="score-distribution-chart"></canvas>
+                    <div id="score-statistics" class="score-statistics"></div>
+                </div>
+
                 <button id="restart-btn" class="btn btn-primary">Ricomincia il Quiz</button>
             </div>
         </div>
     </div>
 
+    <!-- Chart.js for score distribution visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Application scripts -->
+    <script src="js/api-config.js"></script>
     <script src="js/quiz.js"></script>
     <script src="js/ui.js"></script>
 </body>

@@ -1,6 +1,7 @@
 /**
  * Quiz UI Controller
  * Handles all user interface interactions and display updates
+ * Now includes answer statistics and score distribution visualization
  */
 
 class QuizUI {
@@ -59,17 +60,29 @@ class QuizUI {
      * Start the quiz
      */
     async startQuiz() {
+        // Show loading state
+        this.startBtn.disabled = true;
+        this.startBtn.textContent = 'Caricamento...';
+
         // Load questions
         const loaded = await quiz.loadQuestions();
         if (!loaded) {
-            alert('Errore nel caricamento delle domande. Riprova.');
+            this.startBtn.disabled = false;
+            this.startBtn.textContent = 'Inizia il Quiz';
             return;
         }
+
+        // Start session
+        await quiz.startSession();
 
         // Show quiz screen
         this.showScreen('quiz');
         this.updateProgress();
         this.displayQuestion();
+
+        // Reset button
+        this.startBtn.disabled = false;
+        this.startBtn.textContent = 'Inizia il Quiz';
     }
 
     /**
@@ -104,7 +117,7 @@ class QuizUI {
     /**
      * Handle answer selection
      */
-    selectAnswer(answerIndex) {
+    async selectAnswer(answerIndex) {
         // Prevent multiple selections
         if (this.selectedAnswerIndex !== null) {
             return;
@@ -116,13 +129,17 @@ class QuizUI {
         this.selectedAnswerIndex = answerIndex;
         const buttons = this.answersContainer.querySelectorAll('.answer-btn');
 
-        // Check if answer is correct
-        const isCorrect = quiz.checkAnswer(answerIndex);
+        // Disable all buttons during processing
+        buttons.forEach(btn => btn.disabled = true);
+
+        // Check answer and get statistics
+        const result = await quiz.checkAnswer(answerIndex);
+        const isCorrect = result.isCorrect;
+        const statistics = result.statistics;
         const correctIndex = quiz.getCorrectAnswerIndex();
 
         // Update button states
         buttons.forEach((btn, index) => {
-            btn.disabled = true;
             if (index === answerIndex) {
                 btn.classList.add(isCorrect ? 'correct' : 'incorrect');
             }
@@ -131,8 +148,8 @@ class QuizUI {
             }
         });
 
-        // Show feedback
-        this.showFeedback(isCorrect);
+        // Show feedback with statistics
+        this.showFeedback(isCorrect, statistics);
         this.updateProgress();
 
         // Start auto-advance timer
@@ -142,10 +159,20 @@ class QuizUI {
     /**
      * Show feedback after answer selection
      */
-    showFeedback(isCorrect) {
+    showFeedback(isCorrect, statistics) {
         this.feedbackContainer.classList.remove('hidden');
         this.feedbackContainer.classList.add(isCorrect ? 'correct' : 'incorrect');
-        this.feedbackText.textContent = isCorrect ? '✓ Risposta corretta!' : '✗ Risposta sbagliata!';
+
+        // Base feedback message
+        let message = isCorrect ? '✓ Risposta corretta!' : '✗ Risposta sbagliata!';
+
+        // Add statistics if available
+        if (statistics && statistics.totalResponses > 0) {
+            message += `\n\n📊 ${statistics.correctPercentage.toFixed(1)}% delle persone ha risposto correttamente`;
+            message += `\n(su ${statistics.totalResponses} ${statistics.totalResponses === 1 ? 'risposta' : 'risposte'})`;
+        }
+
+        this.feedbackText.textContent = message;
     }
 
     /**
@@ -173,9 +200,12 @@ class QuizUI {
     }
 
     /**
-     * Show results screen
+     * Show results screen with score distribution
      */
-    showResults() {
+    async showResults() {
+        // Complete the session
+        await quiz.completeSession();
+
         const score = quiz.getScore();
         const total = quiz.getTotalQuestions();
         const percentage = quiz.getScorePercentage();
@@ -197,7 +227,100 @@ class QuizUI {
         }
 
         this.resultMessage.textContent = message;
+
+        // Load and display score distribution
+        await this.displayScoreDistribution();
+
         this.showScreen('results');
+    }
+
+    /**
+     * Display score distribution chart
+     */
+    async displayScoreDistribution() {
+        const distributionData = await quiz.getScoreDistribution();
+
+        if (!distributionData || !distributionData.distribution || distributionData.distribution.length === 0) {
+            console.log('No score distribution data available');
+            return;
+        }
+
+        const chartContainer = document.getElementById('score-distribution-chart');
+        if (!chartContainer) {
+            console.error('Chart container not found');
+            return;
+        }
+
+        // Prepare data for Chart.js
+        const scores = distributionData.distribution.map(d => d.score);
+        const counts = distributionData.distribution.map(d => d.count);
+
+        // Destroy existing chart if any
+        if (window.scoreChart) {
+            window.scoreChart.destroy();
+        }
+
+        // Create new chart
+        const ctx = chartContainer.getContext('2d');
+        window.scoreChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: scores.map(s => `${s} punti`),
+                datasets: [{
+                    label: 'Numero di persone',
+                    data: counts,
+                    backgroundColor: 'rgba(232, 165, 88, 0.6)',
+                    borderColor: 'rgba(232, 165, 88, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Distribuzione dei Punteggi',
+                        color: '#E8A558',
+                        font: {
+                            size: 18
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#ffffff',
+                            stepSize: 1
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#ffffff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Show statistics
+        const statsContainer = document.getElementById('score-statistics');
+        if (statsContainer && distributionData.statistics) {
+            statsContainer.innerHTML = `
+                <p><strong>Punteggio medio:</strong> ${distributionData.statistics.averageScore} su ${quiz.getTotalQuestions()}</p>
+                <p><strong>Risposte totali:</strong> ${distributionData.statistics.totalResponses}</p>
+            `;
+        }
     }
 
     /**
@@ -281,7 +404,7 @@ class QuizUI {
     resetToHome() {
         this.clearInactivityTimer();
         this.clearAutoAdvanceTimer();
-        quiz.reset();
+        quiz.reset(); // This will also abandon the session
         this.showScreen('welcome');
     }
 }

@@ -343,3 +343,33 @@ body::before {
         font-size: 1.5em;
     }
 }
+
+/* Score Distribution Chart Styles */
+.chart-container {
+    margin: 30px auto;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    max-width: 600px;
+}
+
+#score-distribution-chart {
+    max-height: 300px;
+}
+
+.score-statistics {
+    margin-top: 20px;
+    text-align: center;
+    color: #E8A558;
+    font-size: 0.95em;
+}
+
+.score-statistics p {
+    margin: 8px 0;
+}
+
+/* Feedback container improvements for multi-line text */
+.feedback-container p {
+    white-space: pre-line;
+    line-height: 1.6;
+}

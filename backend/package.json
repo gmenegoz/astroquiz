@@ -1,0 +1,28 @@
+{
+  "name": "astroquiz-backend",
+  "version": "1.0.0",
+  "description": "Backend API for AstroQuiz - Google Sheets integration with Service Account",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "quiz",
+    "google-sheets",
+    "vercel",
+    "serverless"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "googleapis": "^131.0.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.0.0",
+    "jest": "^29.7.0"
+  }
+}
