@@ -74,6 +74,15 @@ Backend API for the AstroQuiz application, providing Google Sheets integration f
 | ...   | ...   |
 ```
 
+#### Sheet: `score_description`
+```
+| score | title | description |
+|-------|-------|-------------|
+| 0     | ...   | ...         |
+| 3     | Astro-Tourist | Every light you see, you think it is a star |
+| ...   | ...   | ...         |
+```
+
 ### 3. Local Development Setup
 
 1. Clone the repository

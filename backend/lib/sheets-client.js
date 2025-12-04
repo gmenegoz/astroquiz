@@ -10,6 +10,7 @@ const SHEET_QUESTIONS = process.env.SHEET_QUESTIONS || 'questions';
 const SHEET_SESSIONS = process.env.SHEET_SESSIONS || 'sessions';
 const SHEET_ANSWER_STATS = process.env.SHEET_ANSWER_STATS || 'answer_stats';
 const SHEET_SCORE_DISTRIBUTION = process.env.SHEET_SCORE_DISTRIBUTION || 'score_distribution';
+const SHEET_SCORE_DESCRIPTION = process.env.SHEET_SCORE_DESCRIPTION || 'score_description';
 
 /**
  * Get authenticated Google Sheets client
@@ -293,6 +294,21 @@ async function getScoreDistribution() {
     })).sort((a, b) => a.score - b.score);
 }
 
+/**
+ * Get score descriptions from the score_description sheet
+ * Expected format: score | title | description
+ * @returns {Promise<Array>} - Array of {score, title, description} objects sorted by score
+ */
+async function getScoreDescriptions() {
+    const rows = await readSheet(SHEET_SCORE_DESCRIPTION, 'A2:C'); // Skip header row
+
+    return rows.map(row => ({
+        score: parseInt(row[0], 10),
+        title: row[1] || '',
+        description: row[2] || '',
+    })).sort((a, b) => a.score - b.score);
+}
+
 module.exports = {
     getQuestions,
     createSession,
@@ -301,6 +317,7 @@ module.exports = {
     recordAnswer,
     updateScoreDistribution,
     getScoreDistribution,
+    getScoreDescriptions,
     // Export raw functions for testing
     readSheet,
     appendToSheet,

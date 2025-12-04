@@ -263,6 +263,24 @@ class Quiz {
     }
 
     /**
+     * Get score descriptions for personalized result messages
+     */
+    async getScoreDescriptions() {
+        try {
+            const response = await apiRequest(API_CONFIG.ENDPOINTS.GET_SCORE_DESCRIPTIONS, {
+                method: 'GET',
+            });
+
+            if (response.success) {
+                return response.descriptions;
+            }
+        } catch (error) {
+            console.error('Errore nel caricamento delle descrizioni dei punteggi:', error);
+        }
+        return null;
+    }
+
+    /**
      * Reset quiz
      */
     reset() {

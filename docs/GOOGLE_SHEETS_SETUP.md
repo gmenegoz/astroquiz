@@ -260,13 +260,41 @@ You need to create 4 sheets with specific structures.
 
 **Note:** This sheet starts empty. Data is added automatically by the backend.
 
+### Sheet 5: `score_description`
+
+**Purpose:** Stores personalized result messages based on final score
+
+1. **Create New Sheet:**
+   - Click "+" button
+   - Rename to: `score_description`
+
+2. **Add Headers (Row 1):**
+   | A | B | C |
+   |---|---|---|
+   | score | title | description |
+
+**Column Explanations:**
+- `score`: Final score value (0 to total_questions)
+- `title`: Short title for the achievement level
+- `description`: Detailed description of the result
+
+**Example Data:**
+| score | title | description |
+|-------|-------|-------------|
+| 3 | Astro-Tourist | Every light you see, you think it is a star |
+| 7 | Star Navigator | You know your way around the cosmos |
+| 10 | Astro Expert | Perfect knowledge of astronomy! |
+
+**Note:** You should add entries for all possible score values. The backend will find the exact match or closest lower score.
+
 ### ✅ Verification
 
-You should have exactly 4 sheets:
+You should have exactly 5 sheets:
 - [x] `questions` (with headers)
 - [x] `sessions` (with headers)
 - [x] `answer_stats` (with headers)
 - [x] `score_distribution` (with headers)
+- [x] `score_description` (with headers and sample data)
 
 **IMPORTANT:** Sheet names are case-sensitive!
 

@@ -200,7 +200,7 @@ class QuizUI {
     }
 
     /**
-     * Show results screen with score distribution
+     * Show results screen with personalized message from Google Sheets
      */
     async showResults() {
         // Complete the session
@@ -214,16 +214,34 @@ class QuizUI {
         this.finalTotalSpan.textContent = total;
         this.percentageSpan.textContent = percentage;
 
-        // Set result message based on score
+        // Fetch score descriptions from backend
+        const descriptions = await quiz.getScoreDescriptions();
+
         let message = '';
-        if (percentage === 100) {
-            message = 'Perfetto! Sei un vero esperto di astronomia! 🌟';
-        } else if (percentage >= 70) {
-            message = 'Ottimo lavoro! Conosci molto bene l\'astronomia! 🌙';
-        } else if (percentage >= 50) {
-            message = 'Buon risultato! Continua a studiare le stelle! ⭐';
+
+        if (descriptions && descriptions.length > 0) {
+            // Find exact match or closest lower score
+            const matchingDesc = descriptions.find(d => d.score === score) ||
+                                descriptions.slice().reverse().find(d => d.score <= score);
+
+            if (matchingDesc) {
+                // Format: [Title]: [Description]
+                message = `${matchingDesc.title}: ${matchingDesc.description}`;
+            } else {
+                // Fallback if no match found
+                message = 'Grazie per aver partecipato al quiz!';
+            }
         } else {
-            message = 'Non male! C\'è ancora molto da imparare sull\'universo! 🌍';
+            // Fallback to old logic if descriptions unavailable
+            if (percentage === 100) {
+                message = 'Perfetto! Sei un vero esperto di astronomia! 🌟';
+            } else if (percentage >= 70) {
+                message = 'Ottimo lavoro! Conosci molto bene l\'astronomia! 🌙';
+            } else if (percentage >= 50) {
+                message = 'Buon risultato! Continua a studiare le stelle! ⭐';
+            } else {
+                message = 'Non male! C\'è ancora molto da imparare sull\'universo! 🌍';
+            }
         }
 
         this.resultMessage.textContent = message;

@@ -17,6 +17,7 @@ const API_CONFIG = {
         COMPLETE_SESSION: '/api/complete-session',
         ABANDON_SESSION: '/api/abandon-session',
         GET_SCORE_DISTRIBUTION: '/api/get-score-distribution',
+        GET_SCORE_DESCRIPTIONS: '/api/get-score-descriptions',
     },
 
     // Request timeout (ms)
