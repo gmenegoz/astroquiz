@@ -7,7 +7,7 @@ const API_CONFIG = {
     // Backend API base URL
     // Development: http://localhost:3000 (when running vercel dev)
     // Production: https://your-vercel-deployment.vercel.app
-    BASE_URL: 'http://localhost:3000', // Change this to your Vercel deployment URL
+    BASE_URL: 'https://astroquiz-backend.vercel.app', // Change this to your Vercel deployment URL
 
     // API Endpoints
     ENDPOINTS: {
