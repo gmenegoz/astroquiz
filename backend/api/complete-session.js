@@ -42,11 +42,11 @@ module.exports = async (req, res) => {
         const timestampEnd = new Date().toISOString();
         const percentage = ((finalScore / totalQuestions) * 100).toFixed(2);
 
-        // Update session
-        await completeSession(sessionID, timestampEnd, finalScore, totalQuestions);
-
-        // Update score distribution
-        await updateScoreDistribution(finalScore);
+        // Update session and score distribution in parallel
+        await Promise.all([
+            completeSession(sessionID, timestampEnd, finalScore, totalQuestions),
+            updateScoreDistribution(finalScore)
+        ]);
 
         return res.status(200).json({
             success: true,

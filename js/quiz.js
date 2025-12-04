@@ -140,7 +140,7 @@ class Quiz {
                 body: JSON.stringify({
                     sessionID: this.sessionID,
                     questionID: currentQuestion.uniqueID,
-                    selectedAnswerIndex: answerIndex,
+                    selectedAnswerText: selectedAnswer.answer,
                 }),
             });
 

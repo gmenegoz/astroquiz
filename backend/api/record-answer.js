@@ -22,20 +22,13 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { sessionID, questionID, selectedAnswerIndex } = req.body;
+        const { sessionID, questionID, selectedAnswerText } = req.body;
 
         // Validate input
-        if (!sessionID || !questionID || selectedAnswerIndex === undefined) {
+        if (!sessionID || !questionID || !selectedAnswerText) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: sessionID, questionID, selectedAnswerIndex',
-            });
-        }
-
-        if (selectedAnswerIndex < 0 || selectedAnswerIndex > 2) {
-            return res.status(400).json({
-                success: false,
-                error: 'selectedAnswerIndex must be 0, 1, or 2',
+                error: 'Missing required fields: sessionID, questionID, selectedAnswerText',
             });
         }
 
@@ -50,6 +43,25 @@ module.exports = async (req, res) => {
             });
         }
 
+        // Find the original index by matching answer text
+        let selectedAnswerIndex = -1;
+        for (let i = 0; i < question.answers.length; i++) {
+            if (question.answers[i] === selectedAnswerText) {
+                selectedAnswerIndex = i;
+                break;
+            }
+        }
+
+        if (selectedAnswerIndex === -1) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid answer text',
+            });
+        }
+
+        // Now selectedAnswerIndex is the ORIGINAL index (0-2) from database
+        const isCorrect = selectedAnswerIndex === question.correctIndex;
+
         // Record the answer and get updated statistics
         const stats = await recordAnswer(questionID, selectedAnswerIndex);
 
@@ -59,7 +71,7 @@ module.exports = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            correct: selectedAnswerIndex === question.correctIndex,
+            correct: isCorrect,
             correctAnswerIndex: question.correctIndex,
             statistics: {
                 totalResponses: stats.totalResponses,

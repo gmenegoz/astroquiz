@@ -64,16 +64,17 @@ class QuizUI {
         this.startBtn.disabled = true;
         this.startBtn.textContent = 'Caricamento...';
 
-        // Load questions
-        const loaded = await quiz.loadQuestions();
+        // Load questions and start session in parallel
+        const [loaded, sessionStarted] = await Promise.all([
+            quiz.loadQuestions(),
+            quiz.startSession()
+        ]);
+
         if (!loaded) {
             this.startBtn.disabled = false;
             this.startBtn.textContent = 'Inizia il Quiz';
             return;
         }
-
-        // Start session
-        await quiz.startSession();
 
         // Show quiz screen
         this.showScreen('quiz');
@@ -203,9 +204,7 @@ class QuizUI {
      * Show results screen with personalized message from Google Sheets
      */
     async showResults() {
-        // Complete the session
-        await quiz.completeSession();
-
+        // Show results screen immediately with score
         const score = quiz.getScore();
         const total = quiz.getTotalQuestions();
         const percentage = quiz.getScorePercentage();
@@ -214,42 +213,37 @@ class QuizUI {
         this.finalTotalSpan.textContent = total;
         this.percentageSpan.textContent = percentage;
 
-        // Fetch score descriptions from backend
-        const descriptions = await quiz.getScoreDescriptions();
+        this.showScreen('results');
 
+        // Run all API calls in parallel in background
+        const [sessionCompleted, descriptions, distributionData] = await Promise.all([
+            quiz.completeSession(),
+            quiz.getScoreDescriptions(),
+            quiz.getScoreDistribution()
+        ]);
+
+        // Update message with description
         let message = '';
-
         if (descriptions && descriptions.length > 0) {
-            // Find exact match or closest lower score
             const matchingDesc = descriptions.find(d => d.score === score) ||
                                 descriptions.slice().reverse().find(d => d.score <= score);
-
             if (matchingDesc) {
-                // Format: [Title]: [Description]
                 message = `${matchingDesc.title}: ${matchingDesc.description}`;
             } else {
-                // Fallback if no match found
                 message = 'Grazie per aver partecipato al quiz!';
             }
         } else {
-            // Fallback to old logic if descriptions unavailable
-            if (percentage === 100) {
-                message = 'Perfetto! Sei un vero esperto di astronomia! 🌟';
-            } else if (percentage >= 70) {
-                message = 'Ottimo lavoro! Conosci molto bene l\'astronomia! 🌙';
-            } else if (percentage >= 50) {
-                message = 'Buon risultato! Continua a studiare le stelle! ⭐';
-            } else {
-                message = 'Non male! C\'è ancora molto da imparare sull\'universo! 🌍';
-            }
+            // Fallback messages
+            if (percentage === 100) message = 'Perfetto! Sei un vero esperto di astronomia! 🌟';
+            else if (percentage >= 70) message = 'Ottimo lavoro! Conosci molto bene l\'astronomia! 🌙';
+            else if (percentage >= 50) message = 'Buon risultato! Continua a studiare le stelle! ⭐';
+            else message = 'Non male! C\'è ancora molto da imparare sull\'universo! 🌍';
         }
 
         this.resultMessage.textContent = message;
 
-        // Load and display score distribution
-        await this.displayScoreDistribution();
-
-        this.showScreen('results');
+        // Display chart with already-fetched data
+        this.renderScoreChart(distributionData);
     }
 
     /**
@@ -257,7 +251,13 @@ class QuizUI {
      */
     async displayScoreDistribution() {
         const distributionData = await quiz.getScoreDistribution();
+        this.renderScoreChart(distributionData);
+    }
 
+    /**
+     * Render score distribution chart with pie chart and red-green gradient
+     */
+    renderScoreChart(distributionData) {
         if (!distributionData || !distributionData.distribution || distributionData.distribution.length === 0) {
             console.log('No score distribution data available');
             return;
@@ -272,59 +272,80 @@ class QuizUI {
         // Prepare data for Chart.js
         const scores = distributionData.distribution.map(d => d.score);
         const counts = distributionData.distribution.map(d => d.count);
+        const totalResponses = distributionData.statistics.totalResponses;
+
+        // Generate colors: red (0) → yellow (5) → green (10)
+        const maxScore = Math.max(...scores);
+        const getScoreColor = (score) => {
+            const ratio = score / maxScore;
+            let r, g, b;
+
+            if (ratio < 0.5) {
+                // Red to Yellow: ratio 0-0.5
+                const t = ratio * 2;
+                r = 255;
+                g = Math.round(255 * t);
+                b = 0;
+            } else {
+                // Yellow to Green: ratio 0.5-1
+                const t = (ratio - 0.5) * 2;
+                r = Math.round(255 * (1 - t));
+                g = 255;
+                b = 0;
+            }
+
+            return `rgb(${r}, ${g}, ${b})`;
+        };
+
+        const backgroundColors = scores.map(score => getScoreColor(score));
 
         // Destroy existing chart if any
         if (window.scoreChart) {
             window.scoreChart.destroy();
         }
 
-        // Create new chart
+        // Create PIE chart
         const ctx = chartContainer.getContext('2d');
         window.scoreChart = new Chart(ctx, {
-            type: 'bar',
+            type: 'pie',
             data: {
-                labels: scores.map(s => `${s} punti`),
+                labels: scores.map(s => `${s}/${maxScore}`),
                 datasets: [{
                     label: 'Numero di persone',
                     data: counts,
-                    backgroundColor: 'rgba(232, 165, 88, 0.6)',
-                    borderColor: 'rgba(232, 165, 88, 1)',
-                    borderWidth: 2
+                    backgroundColor: backgroundColors,
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                    borderWidth: 2,
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
                 plugins: {
                     legend: {
-                        display: false
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            color: '#e8e8e8',
+                            font: { size: 10 },
+                            padding: 8,
+                            boxWidth: 15,
+                        }
                     },
                     title: {
                         display: true,
                         text: 'Distribuzione dei Punteggi',
-                        color: '#E8A558',
-                        font: {
-                            size: 18
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            color: '#ffffff',
-                            stepSize: 1
-                        },
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        }
+                        color: '#2E7BB5',
+                        font: { size: 14, weight: 'bold' }
                     },
-                    x: {
-                        ticks: {
-                            color: '#ffffff'
-                        },
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const score = scores[context.dataIndex];
+                                const count = context.parsed;
+                                const percentage = ((count / totalResponses) * 100).toFixed(1);
+                                return `${score}/${maxScore}: ${count} persone (${percentage}%)`;
+                            }
                         }
                     }
                 }
